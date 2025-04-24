@@ -26,7 +26,7 @@ class FollowData(BaseModel):
 
 
 # 資料庫插入函式
-async def insert_follow_data(data: FollowData):
+async def insert_follow_data(follow_user: str, webhook_url: str, notify: str):
     conn = await aiomysql.connect(
         host=DB_HOST,
         port=DB_PORT,
@@ -41,19 +41,19 @@ async def insert_follow_data(data: FollowData):
             INSERT INTO follow_data (follow_user, webhook_url, notify, data)
             VALUES (%s, %s, %s, DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL 1 MONTH), '%%Y-%m-%d'))
             """,
-            (data.follow_user, data.webhook_url, data.notify, data.data)
+            (follow_user, webhook_url, notify,)
         )
     conn.close()
 
 
 # POST 端點
 @app.post("/add-follow/")
-async def add_follow(follow_user: str, webhook_url: str, notify: bool):
+async def add_follow(follow_user: str, webhook_url: str, notify: str):
     try:
-        await insert_follow_data(data)
+        await insert_follow_data(follow_user, webhook_url, notify,)
         return {"message": "Follow data inserted successfully!"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    uvicorn.run("twitter_webhook_api:app", host="0.0.0.0", port=5000, reload=True)
+    uvicorn.run("twitter_webhook_api:app", host="0.0.0.0", port=65533, reload=True)
