@@ -11,6 +11,7 @@ import asyncio
 from twitter_hook import main
 import aiohttp
 import json
+import random
 
 
 load_dotenv(dotenv_path=".env")
@@ -126,8 +127,8 @@ async def insert_follow_data(pool, follow_user: str, webhook_url: str, notify: s
                 if count >= limit:
                     return {"message": f"已達到最大訂閱數量: {limit}"}
             except Exception as e:
-                await send_webhook_message()
-                return {"message": f"資料庫查詢失敗: {str(e)}"}
+                await send_webhook_message(error_webhook, f"資料庫查詢失敗: {str(e)}")
+                return {"message": "資料庫查詢失敗"}
 
     # 嘗試發送測試訊息到 Webhook
     async with aiohttp.ClientSession() as session:
@@ -137,7 +138,8 @@ async def insert_follow_data(pool, follow_user: str, webhook_url: str, notify: s
                 if response.status != 200 and response.status != 204:
                     return {"message": f"Webhook 測試訊息發送失敗，狀態碼: {response.status}"}
         except Exception as e:
-            return {"message": f"Webhook 測試失敗: {str(e)}"}
+            await send_webhook_message(error_webhook, f"Webhook 測試失敗: {str(e)}")
+            return {"message": "Webhook 測試失敗"}
 
     # 如果測試訊息成功，繼續執行資料庫插入
     async with pool.acquire() as conn:
@@ -156,7 +158,8 @@ async def insert_follow_data(pool, follow_user: str, webhook_url: str, notify: s
                 )
                 return {"message": "訂閱成功"}
             except Exception as e:
-                return {"message": f"資料庫插入失敗: {str(e)}"}
+                await send_webhook_message(error_webhook, f"資料庫插入失敗: {str(e)}")
+                return {"message": "資料庫插入失敗"}
 
 
 class FollowData(BaseModel):
