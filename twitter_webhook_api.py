@@ -22,9 +22,10 @@ DB_USER = os.getenv("TWITTER_DB_USER")
 DB_PASSWORD = os.getenv("TWITTER_DB_PASSWORD")
 DB_DATABASE = os.getenv("TWITTER_DB_DATABASE")
 
+error_webhook = os.getenv("error_webhook")
 username_dict = json.loads(os.getenv("username_dict"))
 username_dict_count = len(username_dict)
-one_username_limit = 50
+one_username_limit = 15
 
 
 @asynccontextmanager
@@ -78,6 +79,37 @@ async def home():
     return FileResponse("static/index.html")
 
 
+async def send_webhook_message(webhook_url: str, message: str) -> dict:
+    """
+    向指定的 Webhook URL 發送指定的訊息。
+
+    參數:
+        webhook_url (str): 要發送訊息的 Webhook URL。
+        message (str): 要發送的訊息內容。
+
+    回傳:
+        dict: 包含執行結果的資訊，例如是否成功或錯誤訊息。
+    """
+    # 準備要發送的資料
+    payload = {"content": message}
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                webhook_url, data=json.dumps(payload), headers={"Content-Type": "application/json"}
+            ) as response:
+                if response.status == 200 or response.status == 204:
+                    return {"success": True, "message": "訊息發送成功"}
+                else:
+                    return {
+                        "success": False,
+                        "message": f"訊息發送失敗，狀態碼: {response.status}",
+                        "details": await response.text(),
+                    }
+    except aiohttp.ClientError as e:
+        return {"success": False, "message": f"訊息發送失敗: {str(e)}"}
+
+
 # 資料庫插入函式
 async def insert_follow_data(pool, follow_user: str, webhook_url: str, notify: str):
     async with pool.acquire() as conn:
@@ -94,6 +126,7 @@ async def insert_follow_data(pool, follow_user: str, webhook_url: str, notify: s
                 if count >= limit:
                     return {"message": f"已達到最大訂閱數量: {limit}"}
             except Exception as e:
+                await send_webhook_message()
                 return {"message": f"資料庫查詢失敗: {str(e)}"}
 
     # 嘗試發送測試訊息到 Webhook
