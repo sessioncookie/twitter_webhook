@@ -6,27 +6,25 @@ import asyncio
 import os
 import redis.asyncio as redis
 from dateutil import parser
-from typing import Optional
+from typing import Optional, Dict, List
 import aiohttp
 import json
 from typing import Union
 from datetime import datetime
 
-
-load_dotenv(dotenv_path=".env")
+load_dotenv(dotenv_path="./.env")
 
 DB_HOST = os.getenv("TWITTER_DB_HOST")
 DB_PORT = int(os.getenv("TWITTER_DB_PORT"))
-UDB_USERSER = os.getenv("TWITTER_DB_USER")
+DB_USER = os.getenv("TWITTER_DB_USER")
 DB_PASSWORD = os.getenv("TWITTER_DB_PASSWORD")
 DB_DATABASE = os.getenv("TWITTER_DB_DATABASE")
-TWITTER_REDIS_URL = os.getenv("DOCKER_TWITTER_REDIS_URL")
-TWITTER_REDIS_MAX_CONNECTIONS = os.getenv("TWITTER_DB_DATABASE")
+TWITTER_REDIS_URL = os.getenv("TWITTER_REDIS_URL")
+TWITTER_REDIS_MAX_CONNECTIONS = os.getenv("TWITTER_REDIS_MAX_CONNECTIONS")
 username_dict = json.loads(os.getenv("username_dict"))
-
-redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")  # 預設值為本地 Redis
-redis_max_connections = int(os.getenv("REDIS_MAX_CONNECTIONS", "10"))
-pool = redis.ConnectionPool.from_url(redis_url, max_connections=redis_max_connections)
+pool = redis.ConnectionPool.from_url(
+    TWITTER_REDIS_URL, max_connections=int(TWITTER_REDIS_MAX_CONNECTIONS)
+)
 redis_client = redis.Redis(connection_pool=pool)
 
 
@@ -35,7 +33,7 @@ async def create_pool():
         pool = await aiomysql.create_pool(
             host=DB_HOST,
             port=DB_PORT,
-            user=UDB_USERSER,
+            user=DB_USER,
             password=DB_PASSWORD,
             db=DB_DATABASE,
             minsize=1,
@@ -54,14 +52,21 @@ async def fetch_with_pool(pool):
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
             await cursor.execute(
-                "SELECT id,follow_user,webhook_url,notify FROM follow_data WHERE data < NOW()"
+                "SELECT id,follow_user,webhook_url,notify FROM follow_data WHERE state = 1"
             )
             results = await cursor.fetchall()
             return results
 
 
+async def update_state(pool, id: int):
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cursor:
+            await cursor.execute("UPDATE follow_data SET state = 0 WHERE id = %s", (id,))
+            await conn.commit()
+
+
 async def twitter(
-    target_username,
+    target_username: str,
     TWITTER_username: str = "0",
     TWITTER_password: str = "0",
 ):
@@ -70,32 +75,31 @@ async def twitter(
         app = Twitter(token_path)
         if not os.path.exists(token_path):
             await app.sign_in(username=TWITTER_username, password=TWITTER_password)
-        # await app.sign_in(username="ilovetweey57203", password="vfmbpoertoij3423fmbb")
         await app.connect()
 
-        # 嘗試獲取用戶資訊
         try:
             user = await app.get_user_info(target_username)
         except TwitterError as e:
             print(f"Error fetching user info: {e}")
-            return  # 如果無法獲取用戶資訊，跳過此次輪詢
+            return None
 
-        # 嘗試獲取推文
         try:
             all_tweets = await app.get_tweets(user)
-            if hasattr(all_tweets, "tweets"):
-                for tweet in all_tweets.tweets:
+            for tweet in all_tweets.tweets:
+                if hasattr(tweet, "tweets"):
+                    for _tweet in tweet:
+                        if not _tweet.is_retweet:
+                            return _tweet.url, _tweet.created_on
+                else:
                     if not tweet.is_retweet:
                         return tweet.url, tweet.created_on
-            else:
-                if not all_tweets.is_retweet:
-                    return all_tweets.url, all_tweets.created_on
         except TwitterError as e:
             print(f"Error fetching tweets: {e}")
-            return  # 如果無法獲取推文，跳過此次輪詢
+            return None
 
     except Exception as e:
         print(f"Unexpected error in Twitter task: {e}")
+        return None
 
 
 REDIS_KEY = "twitter:last_tweet_time"
@@ -110,7 +114,6 @@ async def twitter_and_redis(username: str, time: Union[str, datetime]) -> bool:
     old_time_str: Optional[str] = await redis_client.hget(REDIS_KEY, username)
 
     if old_time_str is None:
-        # 轉成 ISO 格式字串再存進 Redis
         await redis_client.hset(REDIS_KEY, username, new_time.isoformat())
         return True
 
@@ -119,41 +122,84 @@ async def twitter_and_redis(username: str, time: Union[str, datetime]) -> bool:
     if old_time < new_time:
         await redis_client.hset(REDIS_KEY, username, new_time.isoformat())
         return True
-    else:
-        return False
+    return False
 
 
 async def message_to_webhook(message: str, webhook_url: str) -> bool:
     async with aiohttp.ClientSession() as session:
         try:
             async with session.post(webhook_url, json={"content": message}) as resp:
-                if resp.status == 200 or resp.status == 204:
-                    return True
-                else:
-                    print(f"⚠️ Webhook 回應狀態碼: {resp.status}")
-                    return False
+                return resp.status == 200 or resp.status == 204
         except aiohttp.ClientError as e:
             print(f"❌ 發送 webhook 時發生錯誤: {e}")
             return False
 
 
+async def check_network() -> bool:
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get("https://www.google.com", timeout=5) as resp:
+                return resp.status == 200
+        except aiohttp.ClientError:
+            return False
+
+
 async def main():
     pool = await create_pool()
-    followers = [[username, token] for username, token in username_dict.items()]
-    if pool:
-        follow_data = await fetch_with_pool(pool)
-        pool.close()
-        await pool.wait_closed()
+    if not pool:
+        return
 
-        for data in follow_data:
-            tw_url, tw_time = await twitter(
-                target_username=data[1],
-                TWITTER_username=followers[len(followers) % int(data[0])][0],
-                TWITTER_password=followers[len(followers) % int(data[0])][1],
-            )
-            if await twitter_and_redis(data[1], tw_time):
-                await message_to_webhook(message=data[3] + f"\n{tw_url}", webhook_url=data[2])
+    followers = [[username, token] for username, token in username_dict.items()]
+    follow_data = await fetch_with_pool(pool)
+
+    # Group by follow_user to avoid duplicate Twitter queries
+    grouped_data: Dict[str, List[dict]] = {}
+    for data in follow_data:
+        follow_user = data[1]
+        if follow_user not in grouped_data:
+            grouped_data[follow_user] = []
+        grouped_data[follow_user].append({"id": data[0], "webhook_url": data[2], "notify": data[3]})
+
+    for idx, (follow_user, entries) in enumerate(grouped_data.items()):
+        # Use index to cycle through followers list
+        twitter_account = followers[idx % len(followers)]
+        result = await twitter(
+            target_username=follow_user,
+            TWITTER_username=twitter_account[0],
+            TWITTER_password=twitter_account[1],
+        )
+
+        if result is None:
+            continue
+
+        tw_url, tw_time = result
+        if await twitter_and_redis(follow_user, tw_time):
+            for entry in entries:
+                success = await message_to_webhook(
+                    message=entry["notify"] + f"\n{tw_url}", webhook_url=entry["webhook_url"]
+                )
+                if not success:
+                    # Check network status before disabling
+                    if await check_network():
+                        await update_state(pool, entry["id"])
+                    else:
+                        print("Network issue detected, skipping state update")
+                        pool.close()
+                        await pool.wait_closed()
+                        return
+
+    pool.close()
+    await pool.wait_closed()
+
+
+async def scheduler():
+    while True:
+        try:
+            await main()
+        except Exception as e:
+            print(f"執行任務時出錯: {e}")
+        await asyncio.sleep(900)  # 每隔 900 秒（15 分鐘）
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(scheduler())

@@ -1,0 +1,23 @@
+services:
+
+  api:
+    build:
+      context: .
+    container_name: twitter_api
+    networks:
+      - bot
+    ports:
+      - "25563:25563"  # 映射宿主機端口 8001 到容器內部 25563 端口
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: uvicorn twitter_webhook_api:app --host 0.0.0.0 --port 25563
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DB_HOST=bot-mysql  # MySQL 服務的主機名
+      - DB_PORT=3306        # MySQL 端口
+      - DB_USER=root         # MySQL 用戶
+      - DB_PASSWORD=kun19960212  # MySQL 密碼
+networks:
+  bot:
+    external: true

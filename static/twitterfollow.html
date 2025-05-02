@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="三玄庫崎 | Twitter Webhook Follow 服務">
+    <meta name="keywords" content="session_cookie, 三玄庫崎, Twitter, Webhook, Follow, Vtuber">
+    <meta name="author" content="session_cookie">
+    <meta property="og:title" content="三玄庫崎 | Twitter Webhook Follow 服務">
+    <meta property="og:description" content="三玄庫崎提供的 Twitter 追蹤 Webhook 服務，簡單設定即可接收通知">
+    <meta property="og:image" content="/static/avatar.gif">
+    <meta property="og:url" content="https://yourdomain.com/webhook">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>三玄庫崎 | Twitter Webhook Follow</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #0f0f0f;
+            color: #fff;
+            position: relative;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body.light-theme {
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            filter: brightness(40%) blur(2px);
+            z-index: -2;
+        }
+
+        #particles-js {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .navbar {
+            backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .form-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 30px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            animation: slideUp 1s ease-in;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .form-container h1 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+        }
+
+        .form-container label {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .form-container input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-container input:focus {
+            outline: none;
+            border-color: #1da1f2;
+        }
+
+        .form-button {
+            display: inline-block;
+            padding: 12px;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 48%;
+            text-align: center;
+        }
+
+        .form-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(255, 255, 255, 0.2);
+        }
+
+        .submit-button {
+            background: linear-gradient(45deg, #1da1f2, #0d8ecf);
+        }
+
+        .tutorial-button {
+            background: linear-gradient(45deg, #666, #444);
+        }
+
+        #message {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            text-align: center;
+            color: #aaa;
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow: auto;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal img {
+            max-width: 100%;
+            max-height: 70vh;
+            object-fit: contain;
+            border-radius: 10px;
+        }
+
+        .modal-button {
+            display: block;
+            margin: 20px auto 0;
+            padding: 12px;
+            background: linear-gradient(45deg, #ff0000, #cc0000);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .modal-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(255, 255, 255, 0.2);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .light-theme .form-container,
+        .light-theme .modal-content {
+            background: rgba(0, 0, 0, 0.08);
+            color: #333;
+        }
+
+        .light-theme input {
+            background: rgba(0, 0, 0, 0.05);
+            color: #333;
+            border-color: rgba(0, 0, 0, 0.2);
+        }
+
+        .light-theme #message {
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .form-container {
+                padding: 20px;
+            }
+
+            .form-container h1 {
+                font-size: 1.6rem;
+            }
+
+            .form-button {
+                padding: 10px;
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .form-container {
+                padding: 15px;
+            }
+
+            .form-container h1 {
+                font-size: 1.4rem;
+            }
+
+            .form-button {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+        }
+        
+    </style>
+</head>
+<body>
+    <img src="/static/img.jpg" alt="背景圖" class="background">
+    <div id="particles-js"></div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">三玄庫崎</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">首頁</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/twitterfollow">Webhook 服務</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container text-center py-5">
+        <div class="form-container">
+            <h1>Twitter Webhook Follow 服務</h1>
+            <form id="followForm" method="POST" class="space-y-4">
+                <div>
+                    <label for="follow_user">追蹤用戶</label>
+                    <input type="text" id="follow_user" name="follow_user" required>
+                </div>
+                <div>
+                    <label for="webhook_url">Webhook URL</label>
+                    <input type="url" id="webhook_url" name="webhook_url" required>
+                </div>
+                <div>
+                    <label for="notify">通知內容</label>
+                    <input type="text" id="notify" name="notify" required>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="submit" class="form-button submit-button">提交</button>
+                    <button type="button" id="tutorialButton" class="form-button tutorial-button">教學</button>
+                </div>
+            </form>
+            <p id="message"></p>
+        </div>
+    </div>
+
+    <div id="tutorialModal" class="modal hidden">
+        <div class="modal-content">
+            <img src="/static/teach.png" alt="教學" class="modal-img">
+            <button id="closeModal" class="modal-button">關閉</button>
+        </div>
+    </div>
+
+    <footer class="text-center py-4">
+        © <span id="year"></span> session_cookie 版權所有
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/main.js?v=1.0.3"></script>
+    <script>
+        document.getElementById('year').textContent = new Date().getFullYear();
+
+        const themeToggle = document.createElement('button');
+        themeToggle.id = 'theme-toggle';
+        themeToggle.className = 'theme-toggle';
+        themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+        themeToggle.style.position = 'fixed';
+        themeToggle.style.top = '20px';
+        themeToggle.style.right = '20px';
+        themeToggle.style.padding = '10px';
+        themeToggle.style.background = 'rgba(255, 255, 255, 0.1)';
+        themeToggle.style.border = 'none';
+        themeToggle.style.borderRadius = '50%';
+        themeToggle.style.cursor = 'pointer';
+        themeToggle.style.color = '#fff';
+        themeToggle.style.fontSize = '1.2rem';
+        document.body.appendChild(themeToggle);
+
+        function setTheme(dark) {
+            document.body.classList.toggle('light-theme', !dark);
+            const icon = themeToggle.querySelector('i');
+            icon.className = dark ? 'fas fa-moon' : 'fas fa-sun';
+        }
+
+        const now = new Date();
+        setTheme(now.getHours() < 7 || now.getHours() >= 19);
+
+        themeToggle.addEventListener('click', () => {
+            const isDark = !document.body.classList.contains('light-theme');
+            setTheme(!isDark);
+        });
+
+        particlesJS("particles-js", {
+            particles: {
+                number: { value: 80, density: { enable: true, value_area: 800 } },
+                color: { value: "#ffffff" },
+                shape: { type: "circle" },
+                opacity: { value: 0.4 },
+                size: { value: 3, random: true },
+                line_linked: { enable: true, distance: 120, color: "#ffffff", opacity: 0.3, width: 1 },
+                move: { enable: true, speed: 1.5, random: true }
+            },
+            interactivity: {
+                detect_on: "canvas",
+                events: { onhover: { enable: true, mode: "grab" }, onclick: { enable: true, mode: "push" } },
+                modes: { grab: { distance: 140 }, push: { particles_nb: 3 } }
+            },
+            retina_detect: true
+        });
+
+        const tutorialModal = document.getElementById('tutorialModal');
+        const tutorialButton = document.getElementById('tutorialButton');
+        const closeModal = document.getElementById('closeModal');
+
+        tutorialButton.addEventListener('click', () => {
+            tutorialModal.classList.remove('hidden');
+        });
+
+        closeModal.addEventListener('click', () => {
+            tutorialModal.classList.add('hidden');
+        });
+
+        tutorialModal.addEventListener('click', (e) => {
+            if (e.target === tutorialModal) {
+                tutorialModal.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="三玄庫崎 | session_cookie 的個人網站，YouTube、Twitch、X 內容創作者">
+    <meta name="keywords" content="session_cookie, 三玄庫崎, Vtuber, YouTube, Twitch, X, 內容創作者">
+    <meta name="author" content="session_cookie">
+    <meta property="og:title" content="三玄庫崎 | 個人網站">
+    <meta property="og:description" content="Vtuber 賽博龐克風格的個人主頁，連結 YouTube、Twitch、X 等平台">
+    <meta property="og:image" content="/static/avatar.gif">
+    <meta property="og:url" content="https://yourdomain.com">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>三玄庫崎 | session_cookie</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #0f0f0f;
+            color: #fff;
+            position: relative;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body.light-theme {
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            filter: brightness(40%) blur(2px);
+            z-index: -2;
+        }
+
+        #particles-js {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .navbar {
+            backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .avatar {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            border: 4px solid #fff;
+            margin-bottom: 20px;
+            transition: transform 0.3s;
+        }
+
+        .avatar:hover {
+            transform: scale(1.1);
+        }
+
+        .social-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .social-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(255, 255, 255, 0.2);
+        }
+
+        .youtube {
+            background: linear-gradient(45deg, #ff0000, #cc0000);
+        }
+
+        .twitch {
+            background: linear-gradient(45deg, #6441a5, #4b367c);
+        }
+
+        .twitter {
+            background: linear-gradient(45deg, #1da1f2, #0d8ecf);
+        }
+
+        .discord {
+            background: linear-gradient(45deg, #5865f2, #4550c2);
+        }
+
+        .ECP {
+            background: linear-gradient(45deg, #6ab16a, #65b366);
+        }
+
+        .marshmallow {
+            background: linear-gradient(45deg, #f9a1a5, #f3969a);
+        }
+
+        .social-button i {
+            margin-right: 8px;
+            font-size: 1.2rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9rem;
+            color: #aaa;
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        .light-theme .social-button {
+            color: #fff;
+        }
+
+        .light-theme .about,
+        .light-theme .twitch-embed,
+        .light-theme footer {
+            background: rgba(0, 0, 0, 0.08);
+            color: #333;
+        }
+
+        .light-theme .avatar {
+            border-color: #333;
+        }
+
+        .about,
+        .twitch-embed {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 30px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            animation: slideUp 1s ease-in;
+        }
+
+        .twitch-embed h2 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+        }
+
+        .twitch-embed .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        .twitch-embed .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .avatar {
+                width: 120px;
+                height: 120px;
+            }
+
+            h1.display-4 {
+                font-size: 2.5rem;
+            }
+
+            .social-button {
+                padding: 10px;
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .avatar {
+                width: 100px;
+                height: 100px;
+            }
+
+            h1.display-4 {
+                font-size: 2rem;
+            }
+
+            .lead {
+                font-size: 1rem;
+            }
+        }
+
+        .button-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+
+<body>
+    <img src="/static/img.jpg" alt="背景圖" class="background">
+    <div id="particles-js"></div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">三玄庫崎</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/">首頁</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/twitterfollow">Webhook 服務</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container text-center py-5">
+        <img src="/static/avatar.gif" alt="三玄庫崎頭像" class="avatar">
+        <h1 class="display-4">三玄庫崎</h1>
+        <p class="lead">Vtuber | 賽博龐克 | 全職主播</p>
+
+        <div class="row justify-content-center mt-4">
+            <div class="col-md-2 col-6 mb-2">
+                <a href="https://www.youtube.com/@session_cookie" target="_blank" class="social-button youtube">
+                    <i class="fab fa-youtube"></i> YouTube
+                </a>
+            </div>
+            <div class="col-md-2 col-6 mb-2">
+                <a href="https://www.twitch.tv/session_cookie" target="_blank" class="social-button twitch">
+                    <i class="fab fa-twitch"></i> Twitch
+                </a>
+            </div>
+            <div class="col-md-2 col-6 mb-2">
+                <a href="https://x.com/session_cookie" target="_blank" class="social-button twitter">
+                    <i class="fab fa-twitter"></i> X
+                </a>
+            </div>
+            <div class="col-md-2 col-6 mb-2">
+                <a href="https://discord.gg/PggfP7HRa4" target="_blank" class="social-button discord">
+                    <i class="fab fa-discord"></i> Discord
+                </a>
+            </div>
+            <div class="col-md-2 col-6 mb-2">
+                <a href="https://payment.ecpay.com.tw/Broadcaster/Donate/5364356A848564A66A8BFAC16849B425" target="_blank" class="social-button ECP">
+                    <img src="static/ECP.webp" alt="marshmallow Icon" class="button-icon"></i> 綠界斗內支援
+                </a>
+            </div>
+            <div class="col-md-2 col-6 mb-2">
+                <a href="https://marshmallow-qa.com/2fknxyjcsix7g7q" target="_blank" class="social-button marshmallow">
+                    <img src="static/marshmallow.png" alt="marshmallow Icon" class="button-icon"> 棉花糖
+                </a>
+            </div>
+        </div>
+
+        <div class="about mt-5">
+            <h2>關於我</h2>
+            <p>在虛擬世界出 BUG 的機器人三玄庫崎來到現實世界啦，希望能和大家一起開心玩耍！</p>
+        </div>
+
+        <div class="youtube-embed mt-5">
+            <h2>最新 YouTube 影片</h2>
+            <div class="video-container">
+                <iframe id="latest-video" width="560" height="315" src="https://www.youtube.com/embed/0e5vmQTkNfY"
+                    title="YouTube video player" frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerpolicy="strict-origin-when-cross-origin" allowfullscreen>
+                </iframe>
+            </div>
+        </div>
+
+        <style>
+            .youtube-embed {
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 15px;
+                padding: 30px;
+                margin-top: 30px;
+                backdrop-filter: blur(5px);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                animation: slideUp 1s ease-in;
+            }
+
+            .youtube-embed h2 {
+                font-size: 2rem;
+                margin-bottom: 25px;
+                text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            }
+
+            .youtube-embed .video-container {
+                position: relative;
+                padding-bottom: 56.25%;
+                /* 16:9 Aspect Ratio */
+                height: 0;
+                overflow: hidden;
+                border-radius: 12px;
+                box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+                max-width: 900px;
+                /* 放大影片寬度 */
+                margin: 0 auto;
+                /* 居中 */
+            }
+
+            .youtube-embed .video-container iframe {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+            }
+
+            @media (max-width: 768px) {
+                .youtube-embed .video-container {
+                    max-width: 100%;
+                    /* 小螢幕適應容器 */
+                }
+
+                .youtube-embed h2 {
+                    font-size: 1.6rem;
+                }
+            }
+
+            @media (max-width: 480px) {
+                .youtube-embed {
+                    padding: 20px;
+                }
+
+                .youtube-embed h2 {
+                    font-size: 1.4rem;
+                }
+            }
+        </style>
+
+        <footer>
+            © <span id="year"></span> session_cookie 版權所有
+        </footer>
+
+        <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+        <script>
+            document.getElementById('year').textContent = new Date().getFullYear();
+
+            themeToggle.id = 'theme-toggle';
+            themeToggle.className = 'theme-toggle';
+            themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+            themeToggle.style.position = 'fixed';
+            themeToggle.style.top = '20px';
+            themeToggle.style.right = '20px';
+            themeToggle.style.padding = '10px';
+            themeToggle.style.background = 'rgba(255, 255, 255, 0.1)';
+            themeToggle.style.border = 'none';
+            themeToggle.style.borderRadius = '50%';
+            themeToggle.style.cursor = 'pointer';
+            themeToggle.style.color = '#fff';
+            themeToggle.style.fontSize = '1.2rem';
+            document.body.appendChild(themeToggle);
+
+            function setTheme(dark) {
+                document.body.classList.toggle('light-theme', !dark);
+                const icon = themeToggle.querySelector('i');
+                icon.className = dark ? 'fas fa-moon' : 'fas fa-sun';
+            }
+
+            const now = new Date();
+            setTheme(now.getHours() < 7 || now.getHours() >= 19);
+
+            themeToggle.addEventListener('click', () => {
+                const isDark = !document.body.classList.contains('light-theme');
+                setTheme(!isDark);
+            });
+
+            particlesJS("particles-js", {
+                particles: {
+                    number: { value: 80, density: { enable: true, value_area: 800 } },
+                    color: { value: "#ffffff" },
+                    shape: { type: "circle" },
+                    opacity: { value: 0.4 },
+                    size: { value: 3, random: true },
+                    line_linked: { enable: true, distance: 120, color: "#ffffff", opacity: 0.3, width: 1 },
+                    move: { enable: true, speed: 1.5, random: true }
+                },
+                interactivity: {
+                    detect_on: "canvas",
+                    events: { onhover: { enable: true, mode: "grab" }, onclick: { enable: true, mode: "push" } },
+                    modes: { grab: { distance: 140 }, push: { particles_nb: 3 } }
+                },
+                retina_detect: true
+            });
+        </script>
+</body>
+
+</html>
