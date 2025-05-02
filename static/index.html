@@ -26,6 +26,7 @@
             padding: 0;
             min-height: 100vh;
             overflow-x: hidden;
+            overflow-y: scroll;
         }
 
         body.light-theme {
@@ -373,10 +374,7 @@
 
         <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
         <script>
-            document.getElementById('year').textContent = new Date().getFullYear();
-
-            themeToggle.id = 'theme-toggle';
-            themeToggle.className = 'theme-toggle';
+            document.getElementById('year').textContent = new Date().getFullYear()
             themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
             themeToggle.style.position = 'fixed';
             themeToggle.style.top = '20px';
