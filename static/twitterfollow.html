@@ -26,6 +26,7 @@
             padding: 0;
             min-height: 100vh;
             overflow-x: hidden;
+            overflow-y: scroll;
         }
 
         body.light-theme {
@@ -314,10 +315,6 @@
     <script src="/static/main.js?v=1.0.3"></script>
     <script>
         document.getElementById('year').textContent = new Date().getFullYear();
-
-        const themeToggle = document.createElement('button');
-        themeToggle.id = 'theme-toggle';
-        themeToggle.className = 'theme-toggle';
         themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
         themeToggle.style.position = 'fixed';
         themeToggle.style.top = '20px';
