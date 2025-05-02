@@ -5,6 +5,7 @@ document.getElementById('followForm').addEventListener('submit', async (event) =
     const webhookUrl = document.getElementById('webhook_url').value;
     const notify = document.getElementById('notify').value;
     const messageElement = document.getElementById('message');
+    const submitButton = document.querySelector('.submit-button'); // 選取提交按鈕
 
     // 檢查表單欄位
     if (!followUser || !webhookUrl || !notify) {
@@ -14,6 +15,10 @@ document.getElementById('followForm').addEventListener('submit', async (event) =
         window.alert(errorMessage);
         return;
     }
+
+    // 禁用提交按鈕
+    submitButton.disabled = true;
+    submitButton.textContent = '提交中...'; // 可選：更改按鈕文字提示正在處理
 
     // 構建 JSON 物件
     const requestBody = {
@@ -55,6 +60,10 @@ document.getElementById('followForm').addEventListener('submit', async (event) =
         messageElement.classList.remove('text-green-500');
         messageElement.classList.add('text-red-500');
         window.alert(errorMessage);
+    } finally {
+        // 無論成功或失敗，重新啟用按鈕
+        submitButton.disabled = false;
+        submitButton.textContent = '提交'; // 恢復按鈕文字
     }
 });
 
