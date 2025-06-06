@@ -10,7 +10,7 @@ from typing import Optional, Dict, List
 import aiohttp
 import json
 from typing import Union
-from datetime import datetime
+from datetime import datetime,timezone
 
 load_dotenv(dotenv_path="./.env")
 
@@ -81,7 +81,12 @@ async def twitter(
             user = await app.get_user_info(target_username)
         except TwitterError as e:
             print(f"Error fetching user info: {e}")
-            return f"抱歉，無法獲取用戶{target_username}的資訊，請檢查是否輸入錯誤，已關閉服務。", datetime.now(), True
+            print("用戶名:", target_username)
+            return (
+                f"抱歉，無法獲取用戶{target_username}的資訊，請檢查是否輸入錯誤，已關閉服務。",
+                datetime.now(timezone.utc),
+                True,
+            )
 
         try:
             all_tweets = await app.get_tweets(user)
@@ -171,23 +176,27 @@ async def main():
 
         if result is None:
             continue
-
+        print(result)
         tw_url, tw_time, user_can_not_find = result
-        if await twitter_and_redis(follow_user, tw_time):
-            for entry in entries:
-                success = await message_to_webhook(
-                    message=entry["notify"] + f"\n{tw_url}", webhook_url=entry["webhook_url"]
-                )
-                if not success or user_can_not_find:
-                    # Check network status before disabling
-                    if await check_network():
-                        print("網路正常，更新狀態")
-                        await update_state(pool, entry["id"])
-                    else:
-                        print("檢測到網路問題，跳過狀態更新")
-                        pool.close()
-                        await pool.wait_closed()
-                        return
+        try:
+            if await twitter_and_redis(follow_user, tw_time):
+                for entry in entries:
+                    success = await message_to_webhook(
+                        message=entry["notify"] + f"\n{tw_url}", webhook_url=entry["webhook_url"]
+                    )
+                    if not success or user_can_not_find:
+                        print(f"Webhook 發送失敗或用戶不存在: {follow_user}")
+                        # Check network status before disabling
+                        if await check_network():
+                            print("網路正常，更新狀態")
+                            await update_state(pool, entry["id"])
+                        else:
+                            print("檢測到網路問題，跳過狀態更新")
+                            pool.close()
+                            await pool.wait_closed()
+                            return
+        except Exception as e:
+            print(f"處理 {follow_user} 時發生錯誤: {e}")
 
     pool.close()
     await pool.wait_closed()
