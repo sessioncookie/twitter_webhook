@@ -81,7 +81,7 @@ async def twitter(
             user = await app.get_user_info(target_username)
         except TwitterError as e:
             print(f"Error fetching user info: {e}")
-            return None
+            return f"抱歉，無法獲取用戶{target_username}的資訊，請檢查是否輸入錯誤，已關閉服務。", datetime.now(), True
 
         try:
             all_tweets = await app.get_tweets(user)
@@ -89,10 +89,10 @@ async def twitter(
                 if hasattr(tweet, "tweets"):
                     for _tweet in tweet:
                         if not _tweet.is_retweet:
-                            return _tweet.url, _tweet.created_on
+                            return _tweet.url, _tweet.created_on, False
                 else:
                     if not tweet.is_retweet:
-                        return tweet.url, tweet.created_on
+                        return tweet.url, tweet.created_on, False
         except TwitterError as e:
             print(f"Error fetching tweets: {e}")
             return None
@@ -172,18 +172,19 @@ async def main():
         if result is None:
             continue
 
-        tw_url, tw_time = result
+        tw_url, tw_time, user_can_not_find = result
         if await twitter_and_redis(follow_user, tw_time):
             for entry in entries:
                 success = await message_to_webhook(
                     message=entry["notify"] + f"\n{tw_url}", webhook_url=entry["webhook_url"]
                 )
-                if not success:
+                if not success or user_can_not_find:
                     # Check network status before disabling
                     if await check_network():
+                        print("網路正常，更新狀態")
                         await update_state(pool, entry["id"])
                     else:
-                        print("Network issue detected, skipping state update")
+                        print("檢測到網路問題，跳過狀態更新")
                         pool.close()
                         await pool.wait_closed()
                         return

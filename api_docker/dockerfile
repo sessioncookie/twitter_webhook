@@ -1,0 +1,23 @@
+# 使用 Python 官方的基礎映像
+FROM python:3.9.13
+
+# 設定工作目錄到 /app
+WORKDIR /app
+
+# 先複製 dc_requirements.txt，這樣如果只改動程式碼，依賴不會重新安裝
+COPY requirements.txt .
+
+# 安裝 Python 依賴
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 安装 dockerize
+RUN apt-get update && apt-get install -y wget
+RUN wget https://github.com/jwilder/dockerize/releases/download/v0.6.1/dockerize-linux-amd64-v0.6.1.tar.gz \
+    && tar -C /usr/local/bin -xzvf dockerize-linux-amd64-v0.6.1.tar.gz \
+    && rm dockerize-linux-amd64-v0.6.1.tar.gz
+
+# 複製剩餘專案檔案
+COPY . .
+
+# 定義容器啟動時要執行的指令
+CMD ["python", "bot.py"]

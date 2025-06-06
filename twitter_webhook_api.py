@@ -1,17 +1,16 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 import aiomysql
 import os
 from dotenv import load_dotenv
 import uvicorn
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from contextlib import asynccontextmanager
 import asyncio
 from twitter_hook import main
 import aiohttp
 import json
-import random
 
 
 load_dotenv(dotenv_path=".env")
@@ -73,6 +72,12 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/twitterfollow/", response_class=FileResponse)
 async def twitterfollow():
     return FileResponse("static/twitterfollow.html")
+
+
+@app.post("/twitterfollow/")
+async def twitterfollow_post(request: Request):
+    # 你也可以在這裡記錄一些 Cloudflare POST 或用戶行為資訊
+    return RedirectResponse(url="/twitterfollow/", status_code=303)
 
 
 @app.get("/", response_class=FileResponse)
@@ -145,12 +150,25 @@ async def insert_follow_data(pool, follow_user: str, webhook_url: str, notify: s
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             try:
+                # 查詢當前最大的 id
                 await cur.execute(
                     """
-                    INSERT INTO follow_data (follow_user, webhook_url, notify)
-                    VALUES (%s, %s, %s)
+                    SELECT MAX(id) FROM follow_data
+                    """
+                )
+                result = await cur.fetchone()
+                max_id = result[0] if result[0] is not None else 0
+                new_id = max_id + 1
+
+                # 插入新資料或更新現有資料
+                await cur.execute(
+                    """
+                    INSERT INTO follow_data (id, follow_user, webhook_url, notify)
+                    VALUES (%s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE notify = VALUES(notify)
                     """,
                     (
+                        new_id,
                         follow_user,
                         webhook_url,
                         notify,
@@ -158,7 +176,7 @@ async def insert_follow_data(pool, follow_user: str, webhook_url: str, notify: s
                 )
                 return {"message": "訂閱成功"}
             except Exception as e:
-                await send_webhook_message(error_webhook, f"資料庫插入失敗: {str(e)}")
+                await send_webhook_message(error_webhook, f"資料庫插入失敗: {str(e)},{follow_user},{webhook_url},{notify}")
                 return {"message": "資料庫插入失敗"}
 
 

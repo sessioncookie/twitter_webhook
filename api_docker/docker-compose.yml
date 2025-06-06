@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflare
+    command: tunnel --no-autoupdate --protocol http2 run --token eyJhIjoiM2FkOGY0NWEyNzAwNDdiZDljN2QwOGFhZWMzMjhmN2YiLCJ0IjoiMmY5OWZiOTEtNmMwOS00ZGRkLWI0ZGUtNGMzNzRiNTY2OTZjIiwicyI6Ik9ESmhPRFpqWWpFdFpHTTNaaTAwTVdFd0xUa3laV1V0T1RaalpESmhPVEZoTW1ZNCJ9
+    networks:
+      - app_bot
+    restart: unless-stopped
+  
+  api:
+    build:
+      context: ../api_docker
+    container_name: twitter_api
+    networks:
+      - app_bot
+    volumes:
+      - D:\python_project\twitter_webhook:/app
+    working_dir: /app
+    # ports:
+    #   - "8000:8000"
+    command: uvicorn twitter_webhook_api:app --host 0.0.0.0 --port 8000
+    environment:
+      - PYTHONUNBUFFERED=1
+
+
+networks:
+  app_bot:
+    external: true
+  

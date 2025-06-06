@@ -37,6 +37,14 @@ document.getElementById('followForm').addEventListener('submit', async (event) =
             body: JSON.stringify(requestBody)
         });
 
+        // 如果響應的內容類型不是 JSON，則可能是驗證頁面
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+            // 檢測到HTML內容，假設是驗證頁面
+            window.location.href = '/verify-page'; // 替換為實際的驗證頁面URL
+            return;
+        }
+
         const result = await response.json();
 
         if (response.ok) {
