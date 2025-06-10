@@ -14,7 +14,7 @@ class TokenRequest(BaseModel):
     token: str
 
 
-@app.get("/version")
+@app.get("/vts/version")
 def get_version():
     """
     回傳最新版本號
@@ -28,7 +28,7 @@ def get_version():
     return {"latest_version": LATEST_VERSION}
 
 
-@app.get("/download")
+@app.get("/vts/download")
 def download_file():
     """
     下載最新檔案
@@ -39,7 +39,7 @@ def download_file():
         raise HTTPException(status_code=404, detail="File not found")
 
 
-@app.post("/check_token")
+@app.post("/vts/check_token")
 def check_token(req: TokenRequest):
     """
     檢查 token 是否有效，並回傳有效期限
