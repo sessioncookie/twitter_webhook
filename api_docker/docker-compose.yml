@@ -23,6 +23,22 @@ services:
     command: uvicorn twitter_webhook_api:app --host 0.0.0.0 --port 8000
     environment:
       - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+  api2:
+    build:
+      context: ../api_docker
+    container_name: api
+    networks:
+      - app_bot
+    volumes:
+      - D:\python_project\twitter_webhook:/app
+    working_dir: /app
+    # ports:
+    #   - "8000:8000"
+    command: uvicorn api:app --host 0.0.0.0 --port 8686
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
 
 
 networks:

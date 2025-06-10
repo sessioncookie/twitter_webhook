@@ -176,7 +176,6 @@ async def main():
 
         if result is None:
             continue
-        print(result)
         tw_url, tw_time, user_can_not_find = result
         try:
             if await twitter_and_redis(follow_user, tw_time):
