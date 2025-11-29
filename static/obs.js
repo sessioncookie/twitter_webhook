@@ -13,7 +13,6 @@ const staticInputIds = [
 ];
 
 let serverTemplatesCache = {};
-let turnstileToken = null;
 
 // 核心預設值 (外觀基礎)
 const defaultState = {
@@ -34,7 +33,7 @@ window.FX_REGISTRY = {
     /**
      * 註冊一個特效模組 (由 .js 插件呼叫)
      */
-    register: function(moduleDef) {
+    register: function (moduleDef) {
         console.log(`[FX] 註冊模組: ${moduleDef.name} (${moduleDef.id})`);
         this.modules[moduleDef.id] = moduleDef;
 
@@ -52,7 +51,7 @@ window.FX_REGISTRY = {
     /**
      * 從後端載入所有特效腳本
      */
-    loadAll: async function() {
+    loadAll: async function () {
         const container = document.getElementById('fx-dynamic-container');
         if (!container) return; // 防呆
 
@@ -79,10 +78,10 @@ window.FX_REGISTRY = {
             });
 
             await Promise.all(promises);
-            
+
             // 3. 渲染 UI
             this.renderUI(container);
-            
+
             // 4. 初次生成 CSS
             window.generateCSS();
 
@@ -100,7 +99,7 @@ window.FX_REGISTRY = {
     /**
      * 動態生成控制面板 UI
      */
-    renderUI: function(container) {
+    renderUI: function (container) {
         container.innerHTML = '';
         const moduleIds = Object.keys(this.modules);
 
@@ -142,19 +141,19 @@ window.FX_REGISTRY = {
                 mod.params.forEach(p => {
                     const row = document.createElement('div');
                     row.className = "control-row";
-                    
+
                     // 根據類型生成不同的 input
                     if (p.type === 'range') {
                         row.innerHTML = `
                             <label>${p.label}</label>
                             <div class="input-group">
                                 <input type="range" 
-                                    min="${p.min}" max="${p.max}" step="${p.step||1}" 
+                                    min="${p.min}" max="${p.max}" step="${p.step || 1}" 
                                     value="${modState[p.id]}"
                                     oninput="FX_REGISTRY.updateParam('${id}', '${p.id}', this.value, this)">
                                 <input type="number" 
                                     value="${modState[p.id]}" 
-                                    step="${p.step||1}"
+                                    step="${p.step || 1}"
                                     style="width:50px; text-align:right;" 
                                     onchange="FX_REGISTRY.updateParam('${id}', '${p.id}', this.value, this)">
                             </div>
@@ -167,7 +166,7 @@ window.FX_REGISTRY = {
                         `;
                     }
                     // 可在此擴充 select, text 等
-                    
+
                     paramsDiv.appendChild(row);
                 });
                 wrapper.appendChild(paramsDiv);
@@ -179,11 +178,11 @@ window.FX_REGISTRY = {
     /**
      * UI 互動：切換開關
      */
-    toggle: function(modId, isChecked) {
+    toggle: function (modId, isChecked) {
         if (this.state[modId]) {
             this.state[modId].enabled = isChecked;
             const paramDiv = document.getElementById(`fx-params-${modId}`);
-            if(paramDiv) {
+            if (paramDiv) {
                 paramDiv.style.opacity = isChecked ? "1" : "0.5";
                 paramDiv.style.pointerEvents = isChecked ? "auto" : "none";
             }
@@ -194,10 +193,10 @@ window.FX_REGISTRY = {
     /**
      * UI 互動：更新參數
      */
-    updateParam: function(modId, paramId, value, sourceEl) {
+    updateParam: function (modId, paramId, value, sourceEl) {
         // 更新狀態
         this.state[modId][paramId] = value;
-        
+
         // 如果是 slider，連動更新旁邊的 number input (反之亦然)
         if (sourceEl) {
             const parent = sourceEl.closest('.input-group');
@@ -206,19 +205,19 @@ window.FX_REGISTRY = {
                 if (sibling) sibling.value = value;
             }
         }
-        
+
         window.generateCSS();
     },
 
     /**
      * 取得所有啟用特效的 CSS
      */
-    getAllCSS: function(globalVars) {
+    getAllCSS: function (globalVars) {
         let finalCSS = "";
         Object.keys(this.modules).forEach(id => {
             const mod = this.modules[id];
             const st = this.state[id];
-            
+
             if (st && st.enabled && typeof mod.generateCSS === 'function') {
                 finalCSS += `\n/* FX: ${mod.name} */\n`;
                 finalCSS += mod.generateCSS(st, globalVars);
@@ -230,9 +229,9 @@ window.FX_REGISTRY = {
     /**
      * 匯入外部存檔的 FX 狀態
      */
-    importState: function(savedFxState) {
+    importState: function (savedFxState) {
         if (!savedFxState) return;
-        
+
         Object.keys(savedFxState).forEach(id => {
             // 如果此特效模組存在，則覆蓋其設定
             if (this.state[id]) {
@@ -244,7 +243,7 @@ window.FX_REGISTRY = {
         });
         // 重新渲染 UI 以反映匯入的值
         const container = document.getElementById('fx-dynamic-container');
-        if(container) this.renderUI(container);
+        if (container) this.renderUI(container);
     }
 };
 
@@ -317,9 +316,9 @@ function setupEventListeners() {
     // 綁定所有靜態輸入框
     staticInputIds.forEach(id => {
         const el = document.getElementById(id);
-        if(el) { 
-            el.addEventListener('input', generateCSS); 
-            el.addEventListener('change', generateCSS); 
+        if (el) {
+            el.addEventListener('input', generateCSS);
+            el.addEventListener('change', generateCSS);
         }
     });
 }
@@ -329,7 +328,7 @@ function setupEventListeners() {
 // ==========================================
 
 // 模擬預覽更新 (不影響輸出 CSS)
-window.updateSim = function() {
+window.updateSim = function () {
     const text = document.getElementById('sim-text').value;
     const val = document.getElementById('sim-val').value;
     const percent = document.getElementById('sim-percent').value;
@@ -338,9 +337,9 @@ window.updateSim = function() {
     const valueEl = document.getElementById('p-value');
     const barEl = document.querySelector('.progress-bar');
 
-    if(labelEl) labelEl.innerText = text;
-    if(valueEl) valueEl.innerText = val;
-    if(barEl) barEl.style.width = percent + "%";
+    if (labelEl) labelEl.innerText = text;
+    if (valueEl) valueEl.innerText = val;
+    if (barEl) barEl.style.width = percent + "%";
 }
 
 // 工具函數: Hex 轉 RGB
@@ -350,20 +349,20 @@ function hexToRgb(hex) {
 }
 
 // 核心 CSS 生成器
-window.generateCSS = function() {
+window.generateCSS = function () {
     // 1. 收集靜態參數
     let v = {};
     staticInputIds.forEach(id => {
         const el = document.getElementById(id);
-        if(el) v[id] = el.type === 'checkbox' ? el.checked : el.value;
+        if (el) v[id] = el.type === 'checkbox' ? el.checked : el.value;
     });
 
     // Fallback
-    if(!v.trackColor) v = defaultState;
+    if (!v.trackColor) v = defaultState;
 
     // 2. 計算基礎變數
     const rgbTrack = hexToRgb(v.trackColor || "#333");
-    const trackRgba = `rgba(${rgbTrack}, ${v.trackOpacity/100})`;
+    const trackRgba = `rgba(${rgbTrack}, ${v.trackOpacity / 100})`;
     const rgbFill1 = hexToRgb(v.fillColor1 || "#00ffcc");
     const rgbFont = hexToRgb(v.fontColor || "#fff");
 
@@ -418,10 +417,10 @@ ${fxCSS}
 
     // 6. 輸出到網頁
     const outputBox = document.getElementById('css-output');
-    if(outputBox) outputBox.value = css;
-    
+    if (outputBox) outputBox.value = css;
+
     const styleTag = document.getElementById('dynamic-styles');
-    if(styleTag) styleTag.innerHTML = css;
+    if (styleTag) styleTag.innerHTML = css;
 }
 
 // ==========================================
@@ -434,11 +433,11 @@ function getCurrentState() {
     // 1. 靜態
     staticInputIds.forEach(id => {
         const el = document.getElementById(id);
-        if(el) data[id] = el.type === 'checkbox' ? el.checked : el.value;
+        if (el) data[id] = el.type === 'checkbox' ? el.checked : el.value;
     });
     // 2. 動態 FX
     data.fx = FX_REGISTRY.state;
-    
+
     return data;
 }
 
@@ -449,13 +448,13 @@ function applyState(data) {
     // 1. 應用靜態參數
     Object.keys(data).forEach(key => {
         if (key === 'fx') return; // 跳過 fx 區塊
-        
+
         const el = document.getElementById(key);
         if (el) {
             if (el.type === 'checkbox') el.checked = data[key];
             else el.value = data[key];
             // 觸發 input 事件以更新滑桿 UI
-            el.dispatchEvent(new Event('input')); 
+            el.dispatchEvent(new Event('input'));
         }
     });
 
@@ -470,7 +469,7 @@ function applyState(data) {
 }
 
 // 載入伺服器模板列表
-window.loadServerTemplatesList = async function() {
+window.loadServerTemplatesList = async function () {
     const select = document.getElementById('presetSelector');
     if (!select) return;
 
@@ -487,7 +486,7 @@ window.loadServerTemplatesList = async function() {
         if (data && typeof data === 'object') {
             for (const [filename, content] of Object.entries(data)) {
                 const option = document.createElement('option');
-                option.value = filename; 
+                option.value = filename;
                 option.innerText = `☁️ ${filename}`;
                 select.appendChild(option);
             }
@@ -499,16 +498,37 @@ window.loadServerTemplatesList = async function() {
 }
 
 // 儲存到伺服器
-window.saveToServer = async function() {
+window.saveToServer = async function () {
+    console.log("儲存");
+
+    // ---- 1. Invisible Turnstile 執行驗證 ----
+    turnstile.execute("#cf-turnstile-widget", {
+        action: "saveTemplate"
+    });
+
+    // ---- 2. 等待 callback 拿到新 token ----
+    await new Promise(resolve => {
+        let timer = setInterval(() => {
+            if (window.turnstileToken) {
+                clearInterval(timer);
+                resolve();
+            }
+        }, 50);
+    });
+
+    // ---- 3. 送出資料 ----
     const name = document.getElementById('templateName').value;
-    if(!name) { alert("請輸入模板名稱！"); return; }
-    
+    if (!name) {
+        alert("請輸入模板名稱！");
+        return;
+    }
+
     const state = getCurrentState();
-    
+
     const payload = {
         filename: name,
         cssdata: state,
-        ts_token: turnstileToken
+        ts_token: window.turnstileToken
     };
 
     try {
@@ -517,7 +537,7 @@ window.saveToServer = async function() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        
+
         if (response.ok) {
             const resData = await response.json();
             alert(`成功: ${resData.message}`);
@@ -529,9 +549,15 @@ window.saveToServer = async function() {
     } catch (error) {
         alert("無法連接到伺服器 (請確認是否已啟動後端)");
     }
+
+    // ---- 4. 送出後 reset() ----
+    turnstile.reset("#cf-turnstile-widget");
+
+    // ---- 5. 清除 token（下一輪等 callback 重新設定）----
+    window.turnstileToken = null;
 };
 
-window.loadServerTemplate = function(filename) {
+window.loadServerTemplate = function (filename) {
     if (!serverTemplatesCache) return;
     const templateData = serverTemplatesCache[filename];
     if (templateData) {
@@ -541,10 +567,10 @@ window.loadServerTemplate = function(filename) {
 };
 
 // 本地匯出
-window.exportLocalJson = function() {
+window.exportLocalJson = function () {
     const data = getCurrentState();
     const name = document.getElementById('templateName').value || `obs-goal-${Date.now()}`;
-    const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -554,16 +580,16 @@ window.exportLocalJson = function() {
 };
 
 // 本地匯入
-window.importLocalJson = function(input) {
+window.importLocalJson = function (input) {
     const file = input.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         try {
             const data = JSON.parse(e.target.result);
             applyState(data);
-            if(!document.getElementById('templateName').value) {
-                 document.getElementById('templateName').value = file.name.replace('.json', '');
+            if (!document.getElementById('templateName').value) {
+                document.getElementById('templateName').value = file.name.replace('.json', '');
             }
         } catch (err) { alert('格式錯誤'); }
     };
@@ -571,18 +597,34 @@ window.importLocalJson = function(input) {
     input.value = '';
 };
 
-window.copyCSS = function() {
+window.copyCSS = function () {
     document.getElementById('css-output').select();
     document.execCommand('copy');
     alert("CSS 已複製！");
 };
 
-window.toggleAcc = function(header) {
+window.toggleAcc = function (header) {
     header.parentElement.classList.toggle('active');
 };
 
 // Turnstile Callback
-window.onTurnstileReady = function(token) {
+window.onTurnstileReady = function (token) {
     console.log("Turnstile Token 獲取成功");
     turnstileToken = token;
+};
+
+window.refreshTurnstile = function () {
+    console.log("重新獲取");
+
+    try {
+        // 1. reset 清除 token
+        turnstile.reset("#cf-turnstile-widget");
+
+        // 2. 重新執行 Invisible 驗證
+        turnstile.execute("#cf-turnstile-widget", {
+            action: "refresh"
+        });
+    } catch (e) {
+        console.warn("Turnstile refresh 失敗", e);
+    }
 };
