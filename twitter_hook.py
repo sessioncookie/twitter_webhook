@@ -82,11 +82,20 @@ async def twitter(
         except TwitterError as e:
             print(f"Error fetching user info: {e}")
             print("用戶名:", target_username)
-            return (
-                f"抱歉，無法獲取用戶{target_username}的資訊，請檢查是否輸入錯誤，已關閉服務。",
-                datetime.now(timezone.utc),
-                True,
-            )
+
+            if str(e) == "The User Account wasn't Found or is Protected":
+
+                return (
+                    f"抱歉，無法獲取用戶{target_username}的資訊，請檢查是否輸入錯誤，已關閉服務。",
+                    datetime.now(timezone.utc),
+                    True,
+                )
+            else:
+                return (
+                    "程式錯誤。",
+                    datetime.now(timezone.utc),
+                    False,
+                )
 
         try:
             all_tweets = await app.get_tweets(user)
@@ -180,11 +189,16 @@ async def main():
         try:
             if await twitter_and_redis(follow_user, tw_time):
                 for entry in entries:
-                    success = await message_to_webhook(
-                        message=entry["notify"] + f"\n{tw_url}", webhook_url=entry["webhook_url"]
-                    )
+                    if tw_url == "程式錯誤。":
+                        success = True
+                        continue
+                    else:
+                        success = await message_to_webhook(
+                            message=entry["notify"] + f"\n{tw_url}", webhook_url=entry["webhook_url"]
+                        )
+
                     if not success or user_can_not_find:
-                        print(f"Webhook 發送失敗或用戶不存在: {follow_user}")
+                        print(f"Webhook 發送失敗或用戶不存在: {follow_user} Webhook: {entry['webhook_url']}")
                         # Check network status before disabling
                         if await check_network():
                             print("網路正常，更新狀態")

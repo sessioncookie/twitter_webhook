@@ -3,7 +3,9 @@ from tweety import Twitter
 
 async def get_twitter_user_info():
     username = "Avery195201"
+    print(123)
     app = Twitter(f".twitter_token/{username}")
+    print(123)
 
     # Sign in to Twitter
     await app.sign_in(username=username, password="vfmbpoertoij3423fmbb")

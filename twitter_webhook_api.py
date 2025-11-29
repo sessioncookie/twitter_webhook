@@ -11,6 +11,9 @@ import asyncio
 from twitter_hook import main
 import aiohttp
 import json
+import httpx
+from pathlib import Path
+from fastapi.responses import JSONResponse
 
 
 load_dotenv(dotenv_path=".env")
@@ -63,7 +66,9 @@ async def lifespan(app: FastAPI):
 
 
 # 初始化 FastAPI 應用
-app = FastAPI(lifespan=lifespan, docs_url=None)
+app = FastAPI(
+    lifespan=lifespan,
+)
 
 # 靜態資源與首頁
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -83,6 +88,11 @@ async def twitterfollow_post(request: Request):
 @app.get("/", response_class=FileResponse)
 async def home():
     return FileResponse("static/index.html")
+
+
+@app.get("/obstemplate", response_class=FileResponse)
+async def obstemplate():
+    return FileResponse("static/obstemplate.html")
 
 
 async def send_webhook_message(webhook_url: str, message: str) -> dict:
@@ -176,8 +186,107 @@ async def insert_follow_data(pool, follow_user: str, webhook_url: str, notify: s
                 )
                 return {"message": "訂閱成功"}
             except Exception as e:
-                await send_webhook_message(error_webhook, f"資料庫插入失敗: {str(e)},{follow_user},{webhook_url},{notify}")
+                await send_webhook_message(
+                    error_webhook, f"資料庫插入失敗: {str(e)},{follow_user},{webhook_url},{notify}"
+                )
                 return {"message": "資料庫插入失敗"}
+
+
+class SaveData(BaseModel):
+    filename: str
+    cssdata: dict
+    ts_token: str
+
+
+TEMPLATE_DIR = Path("templates")
+TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
+TURNSTILE_SECRET = "0x4AAAAAACDheqBBQkga5_2A8BOuVJZU8G4"
+
+
+@app.post("/savetemplate")
+async def save_text(data: SaveData):
+    # 1. Cloudflare Turnstile 驗證
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            data={"secret": TURNSTILE_SECRET, "response": data.ts_token},
+        )
+    result = r.json()
+
+    if not result.get("success"):
+        raise HTTPException(status_code=403, detail="Turnstile 驗證失敗")
+
+    # 2. 檔名安全性處理 (重要！)
+    # os.path.basename 會移除路徑中的目錄部分，只保留檔名
+    # 防止有人惡意傳送 "../../../etc/passwd" 這種路徑遍歷攻擊
+    safe_filename = os.path.basename(data.filename).strip()
+
+    if not safe_filename:
+        raise HTTPException(status_code=400, detail="檔名無效")
+
+    # 強制檢查並加上 .json 副檔名
+    if not safe_filename.endswith(".json"):
+        safe_filename += ".json"
+
+    # 3. 執行儲存
+    file_path = TEMPLATE_DIR / safe_filename
+
+    try:
+        # 使用 w 模式寫入 (會覆蓋同名檔案，若不想覆蓋需另外判斷)
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data.cssdata, f, ensure_ascii=False, indent=4)
+
+    except OSError as e:
+        # 捕捉 IO 錯誤
+        raise HTTPException(status_code=500, detail=f"伺服器寫入失敗: {str(e)}")
+
+    return {
+        "status": "success",
+        "message": f"模板 '{safe_filename}' 已成功儲存",
+        "saved_as": safe_filename,
+    }
+
+
+@app.get("/gettemplate")
+async def get_all_templates():
+    # 如果資料夾還沒建立，直接回傳空物件
+    if not TEMPLATE_DIR.exists():
+        return {}
+
+    all_templates = {}
+
+    # 搜尋資料夾內所有 .json 檔案
+    for file_path in TEMPLATE_DIR.glob("*.json"):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = json.load(f)
+
+                # file_path.stem 會取得 "my-style" (從 "templates/my-style.json")
+                # 使用檔名(不含副檔名)作為 Key，方便前端顯示
+                template_name = file_path.stem
+
+                all_templates[template_name] = content
+
+        except Exception as e:
+            # 萬一某個檔案損壞或格式錯誤，印出 Log 但不要讓 API 崩潰
+            print(f"Error reading template {file_path}: {e}")
+            continue
+
+    return all_templates
+
+
+@app.get("/fx/list")
+async def fx_list():
+    # 假設你的特效檔案放在 static/fx 資料夾下
+    folder = "./static/fx"
+    
+    # 如果資料夾不存在就建立，避免報錯
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    # 讀取所有 .js 檔案
+    files = [f for f in os.listdir(folder) if f.endswith(".js")]
+    return JSONResponse(files)
 
 
 class FollowData(BaseModel):

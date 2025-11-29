@@ -7,7 +7,7 @@ app = FastAPI()
 
 # 假設的最新版本資訊
 
-FILE_PATH = "path/to/your/latest_file.zip"  # 請改成實際檔案路徑
+FILE_PATH = "更新/app.cp312-win_amd64.pyd"  # 請改成實際檔案路徑
 
 
 class TokenRequest(BaseModel):

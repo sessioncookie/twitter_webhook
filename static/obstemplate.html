@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="三玄庫崎 | OBS Goal Designer">
+    <title>OBS Goal Designer</title>
+
+    <link rel="icon" type="image/x-icon" href="static/favicon.ico">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <script>
+        if (location.protocol !== "file:") {
+            document.write('<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer><\/script>');
+        } else {
+            console.warn("Turnstile is disabled in file:// mode.");
+        }
+    </script>
+
+    <style>
+        :root {
+            --primary: #eaa400be;
+            --panel-bg-glass: rgba(30, 30, 30, 0.65);
+            --border-glass: rgba(255, 255, 255, 0.15);
+            --input-bg: rgba(0, 0, 0, 0.4);
+            --text-main: #eee;
+            --text-sub: #aaa;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #0f0f0f;
+            color: #fff;
+            margin: 0; padding: 0;
+            height: 100vh; overflow: hidden; 
+            display: flex; flex-direction: column;
+        }
+
+        /* --- 背景與特效 --- */
+        .background { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; filter: brightness(40%) blur(2px); z-index: -2; }
+        #particles-js { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+
+        /* --- Navbar --- */
+        .navbar { backdrop-filter: blur(10px); background: rgba(0, 0, 0, 0.4); z-index: 1000; flex-shrink: 0; }
+
+        /* --- Footer --- */
+        footer { text-align: center; padding: 10px; font-size: 0.8rem; color: #aaa; background: rgba(0, 0, 0, 0.7); z-index: 100; flex-shrink: 0; }
+
+        /* --- 工具主容器 --- */
+        .tool-container { flex: 1; display: flex; overflow: hidden; border-top: 1px solid var(--border-glass); border-bottom: 1px solid var(--border-glass); }
+
+        /* 左側預覽區 */
+        .preview-section { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--border-glass); background: rgba(0, 0, 0, 0.2); position: relative; }
+        .canvas-container {
+            flex: 1;
+            background-image: linear-gradient(45deg, #181818 25%, transparent 25%), linear-gradient(-45deg, #181818 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #181818 75%), linear-gradient(-45deg, transparent 75%, #181818 75%);
+            background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px; background-color: rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center; padding: 40px; overflow: hidden;
+        }
+        #goalDiv { width: 100%; max-width: 600px; position: relative; min-height: 50px; display: flex; align-items: center; }
+        .output-section { height: 150px; background: var(--panel-bg-glass); backdrop-filter: blur(10px); padding: 15px; border-top: 1px solid var(--border-glass); display: flex; flex-direction: column; }
+        textarea.code-box { flex: 1; background: var(--input-bg); border: 1px solid var(--border-glass); color: #72f1b8; font-family: 'Consolas', monospace; padding: 10px; resize: none; font-size: 12px; border-radius: 4px; margin-top: 5px; }
+
+        /* 右側控制區 */
+        .controls-section { width: 400px; background: var(--panel-bg-glass); backdrop-filter: blur(10px); overflow-y: auto; display: flex; flex-direction: column; border-left: 1px solid var(--border-glass); }
+        .controls-section::-webkit-scrollbar { width: 6px; }
+        .controls-section::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        .controls-section::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        .controls-header { padding: 15px; border-bottom: 1px solid var(--border-glass); background: rgba(0, 0, 0, 0.3); position: sticky; top: 0; z-index: 10; }
+
+        /* 檔案操作區 */
+        .template-manager { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+        .filename-input { width: 100%; padding: 8px; background: var(--input-bg); border: 1px solid var(--border-glass); color: #fff; border-radius: 4px; font-size: 14px; }
+        .action-row { display: flex; gap: 5px; }
+        .btn-tool { flex: 1; background: rgba(255,255,255,0.1); border: 1px solid var(--border-glass); color: #eee; padding: 6px; font-size: 12px; cursor: pointer; border-radius: 4px; transition: 0.2s; }
+        .btn-tool:hover { background: var(--primary); color: #000; }
+        .btn-save-server { background: rgba(0, 234, 255, 0.2); border-color: var(--primary); color: var(--primary); }
+        .btn-save-server:hover { background: var(--primary); color: #000; box-shadow: 0 0 10px var(--primary); }
+        #fileInput { display: none; }
+
+        /* 手風琴與控件 */
+        .accordion-item { border-bottom: 1px solid var(--border-glass); }
+        .accordion-header { padding: 12px 20px; background: transparent; cursor: pointer; font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; user-select: none; color: #fff; }
+        .accordion-header:hover { background: rgba(255,255,255,0.05); }
+        .accordion-content { display: none; padding: 15px 20px; background: rgba(0,0,0,0.2); }
+        .accordion-item.active .accordion-content { display: block; }
+        .control-row { margin-bottom: 12px; }
+        .control-row label { display: block; font-size: 12px; color: var(--text-sub); margin-bottom: 4px; }
+        .input-group { display: flex; align-items: center; gap: 10px; }
+        input[type="range"] { flex: 1; accent-color: var(--primary); cursor: pointer; }
+        input[type="number"] { width: 50px; background: var(--input-bg); border: 1px solid #444; color: var(--primary); padding: 4px; border-radius: 4px; text-align: right; }
+        input[type="color"] { width: 40px; height: 30px; border: none; background: none; cursor: pointer; padding: 0; }
+        input[type="text"] { width: 100%; background: var(--input-bg); border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px; }
+        .checkbox-label { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 8px; }
+        input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); }
+        .btn-copy { background: var(--primary); color: #000; border: none; padding: 4px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; float: right; font-size: 12px; }
+        select.preset-select { width: 100%; padding: 8px; background: var(--input-bg); border: 1px solid var(--border-glass); color: var(--primary); border-radius: 4px; cursor: pointer; margin-bottom: 10px; }
+    </style>
+    <style id="dynamic-styles"></style>
+</head>
+
+<body>
+    <img src="static/img.jpg" alt="背景圖" class="background">
+    <div id="particles-js"></div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">三玄庫崎</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="/">首頁</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/twitterfollow">Webhook 服務</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/obstemplate">進度條設計工具</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="tool-container">
+        <div class="preview-section">
+            <div class="canvas-container">
+                <div id="goalDiv">
+                    <div id="goalBackground">
+                        <span id="p-label" style="margin-right: 5px">追隨目標</span>
+                        <span id="p-value">870/1000</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: 70%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="output-section">
+                <div>
+                    <span style="font-weight: bold; font-size: 14px; color: var(--primary)">CSS 輸出</span>
+                    <button class="btn-copy" onclick="copyCSS()">複製代碼</button>
+                </div>
+                <textarea id="css-output" class="code-box" readonly></textarea>
+            </div>
+        </div>
+
+        <div class="controls-section">
+            <div class="controls-header">
+                <h5 style="margin: 0 0 10px 0; color: #fff">
+                    進度條樣式設計</span>
+                </h5>
+
+                <div class="cf-turnstile" 
+                     data-sitekey="0x4AAAAAACDhejCZObhs6u9D" 
+                     data-callback="onTurnstileReady" 
+                     data-size="invisible" 
+                     id="cf-turnstile-widget">
+                </div>
+
+                <div class="template-manager">
+                    <select id="presetSelector" class="preset-select" onchange="loadServerTemplate(this.value)">
+                        <option value="" disabled selected>-- 載入伺服器模板 --</option>
+                    </select>
+
+                    <input type="text" id="templateName" class="filename-input" placeholder="輸入模板名稱 (例如: my-cool-bar)" />
+
+                    <div class="action-row">
+                        <button class="btn-tool" onclick="document.getElementById('fileInput').click()" title="匯入本地 JSON">
+                            <i class="fas fa-folder-open"></i> 匯入
+                        </button>
+                        <button class="btn-tool" onclick="exportLocalJson()" title="下載 JSON 到電腦">
+                            <i class="fas fa-file-download"></i> 下載
+                        </button>
+                        <button class="btn-tool btn-save-server" onclick="saveToServer()" title="儲存到伺服器">
+                            <i class="fas fa-cloud-upload-alt"></i> 儲存模板
+                        </button>
+                    </div>
+                    <input type="file" id="fileInput" accept=".json" onchange="importLocalJson(this)" />
+                </div>
+            </div>
+
+            <div class="accordion-item active">
+                <div class="accordion-header" onclick="toggleAcc(this)">預覽文字</div>
+                <div class="accordion-content">
+                    <div class="control-row">
+                        <label>標題 / 數值</label>
+                        <div style="display: flex; gap: 5px">
+                            <input type="text" id="sim-text" value="追隨目標" oninput="updateSim()">
+                            <input type="text" id="sim-val" value="870/1000" oninput="updateSim()">
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <label>模擬進度 %</label>
+                        <div class="input-group">
+                            <input type="range" id="sim-percent" min="0" max="100" value="70" oninput="updateSim()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="accordion-item">
+                <div class="accordion-header" onclick="toggleAcc(this)">文字設定</div>
+                <div class="accordion-content">
+                    <div class="control-row">
+                        <label>字體大小</label>
+                        <div class="input-group">
+                            <input type="range" class="param-slider" data-target="fontSize" min="20" max="200" value="50">
+                            <input type="number" class="param-number" id="fontSize" value="50">
+                        </div>
+                    </div>
+                    <div class="control-row"><label>文字顏色</label><input type="color" id="fontColor" value="#ffffff" oninput="generateCSS()"></div>
+                    <div class="control-row"><label>垂直位置 (Y)</label><div class="input-group"><input type="range" class="param-slider" data-target="fontY" min="-150" max="150" value="0"><input type="number" class="param-number" id="fontY" value="0"></div></div>
+                    <div class="control-row"><label>水平位置 (X)</label><div class="input-group"><input type="range" class="param-slider" data-target="fontX" min="-200" max="200" value="0"><input type="number" class="param-number" id="fontX" value="0"></div></div>
+                    <label class="checkbox-label"><input type="checkbox" id="fontStroke" onchange="generateCSS()"> 文字描邊</label>
+                    <label class="checkbox-label"><input type="checkbox" id="fontShadow" checked onchange="generateCSS()"> 文字發光</label>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <div class="accordion-header" onclick="toggleAcc(this)">尺寸與外框</div>
+                <div class="accordion-content">
+                    <div class="control-row"><label>高度</label><div class="input-group"><input type="range" class="param-slider" data-target="barHeight" min="10" max="150" value="60"><input type="number" class="param-number" id="barHeight" value="60"></div></div>
+                    <div class="control-row"><label>圓角</label><div class="input-group"><input type="range" class="param-slider" data-target="barRadius" min="0" max="100" value="80"><input type="number" class="param-number" id="barRadius" value="80"></div></div>
+                    <div class="control-row"><label>邊框</label><div class="input-group"><input type="range" class="param-slider" data-target="borderWidth" min="0" max="20" value="0"><input type="number" class="param-number" id="borderWidth" value="0"></div></div>
+                    <div class="control-row"><label>間距</label><div class="input-group"><input type="range" class="param-slider" data-target="barPadding" min="0" max="20" value="0"><input type="number" class="param-number" id="barPadding" value="0"></div></div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <div class="accordion-header" onclick="toggleAcc(this)">色彩配置</div>
+                <div class="accordion-content">
+                    <div class="control-row"><label>軌道底色</label><div class="input-group"><input type="color" id="trackColor" value="#333333" oninput="generateCSS()"><span style="font-size:12px; color:#888;">透明度:</span><input type="number" class="param-number" id="trackOpacity" value="100" min="0" max="100" style="width:40px;"></div></div>
+                    <hr style="border-color:#333; margin: 10px 0;">
+                    <div class="control-row"><label>進度條漸層</label><div class="input-group"><input type="color" id="fillColor1" value="#00ffcc" oninput="generateCSS()"><span>To</span><input type="color" id="fillColor2" value="#0099ff" oninput="generateCSS()"></div></div>
+                    <div class="control-row"><label>角度</label><div class="input-group"><input type="range" class="param-slider" data-target="fillAngle" min="0" max="360" value="90"><input type="number" class="param-number" id="fillAngle" value="90"></div></div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <div class="accordion-header" onclick="toggleAcc(this)"> 特效(FX)</div>
+                <div class="accordion-content">
+                    <div id="fx-dynamic-container">
+                        <div style="text-align:center; color:#888;">正在載入特效模組...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        © <span id="year"></span> session_cookie 版權所有 | OBS Goal Designer V8
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script src="static/obs.js"></script>
+</body>
+</html>

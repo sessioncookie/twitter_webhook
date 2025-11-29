@@ -1,0 +1,35 @@
+{
+  "fontSize": "55",
+  "fontColor": "#ffd700",
+  "fontY": "-55",
+  "fontX": "0",
+  "fontStroke": false,
+  "fontShadow": true,
+  "barHeight": "30",
+  "barRadius": "4",
+  "borderWidth": "1",
+  "barPadding": "2",
+  "trackColor": "#111111",
+  "trackOpacity": "90",
+  "fillColor1": "#bf953f",
+  "fillColor2": "#fcf6ba",
+  "fillAngle": "45",
+  "fx": {
+    "fx_original_flow": {
+      "enabled": true,
+      "speed": "5"
+    },
+    "fx_glow_pulse": {
+      "enabled": true,
+      "intensity": "25",
+      "speed": "4",
+      "glowColor": "#ffd700"
+    },
+    "fx_glass": {
+      "enabled": false
+    },
+    "fx_segmented": {
+      "enabled": false
+    }
+  }
+}

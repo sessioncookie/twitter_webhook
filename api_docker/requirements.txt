@@ -44,7 +44,7 @@ six==1.17.0
 sniffio==1.3.1
 soupsieve==2.7
 starlette==0.46.2
-tweety-ns==2.2
+https://github.com/mahrtayyab/tweety/archive/main.zip
 typing-inspection==0.4.0
 typing_extensions==4.13.2
 urllib3==2.4.0
