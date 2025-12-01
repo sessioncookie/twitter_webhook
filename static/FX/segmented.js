@@ -29,7 +29,6 @@
                     -webkit-mask-image: ${maskCSS} !important;
                     mask-image: ${maskCSS} !important;
                     
-                    /* 稍微消除鋸齒邊緣 */
                     -webkit-mask-size: 100% 100% !important;
                 }
             `;

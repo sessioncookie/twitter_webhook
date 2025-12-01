@@ -216,28 +216,27 @@ async def save_text(data: SaveData):
     if not result.get("success"):
         raise HTTPException(status_code=403, detail="Turnstile 驗證失敗")
 
-    # 2. 檔名安全性處理 (重要！)
-    # os.path.basename 會移除路徑中的目錄部分，只保留檔名
-    # 防止有人惡意傳送 "../../../etc/passwd" 這種路徑遍歷攻擊
+    # 2. 檔名安全性處理
     safe_filename = os.path.basename(data.filename).strip()
 
     if not safe_filename:
         raise HTTPException(status_code=400, detail="檔名無效")
 
-    # 強制檢查並加上 .json 副檔名
     if not safe_filename.endswith(".json"):
         safe_filename += ".json"
 
-    # 3. 執行儲存
+    # 3. 路徑處理
     file_path = TEMPLATE_DIR / safe_filename
 
+    # *** 新增：檔案存在就失敗 ***
+    if file_path.exists():
+        raise HTTPException(status_code=409, detail=f"模板 '{safe_filename}' 已存在，無法覆蓋")
+
+    # 4. 執行儲存
     try:
-        # 使用 w 模式寫入 (會覆蓋同名檔案，若不想覆蓋需另外判斷)
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data.cssdata, f, ensure_ascii=False, indent=4)
-
     except OSError as e:
-        # 捕捉 IO 錯誤
         raise HTTPException(status_code=500, detail=f"伺服器寫入失敗: {str(e)}")
 
     return {

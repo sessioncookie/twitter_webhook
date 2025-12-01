@@ -1,39 +1,61 @@
 {
-  "fontSize": "60",
-  "fontColor": "#fcee0a",
-  "fontY": "-50",
-  "fontX": "0",
-  "fontStroke": true,
-  "fontShadow": true,
-  "barHeight": "40",
-  "barRadius": "0",
-  "borderWidth": "0",
-  "barPadding": "0",
-  "trackColor": "#2b2b2b",
-  "trackOpacity": "80",
-  "fillColor1": "#00f0ff",
-  "fillColor2": "#ff003c",
-  "fillAngle": "90",
-  "fx": {
-    "fx_glitch": {
-      "enabled": true,
-      "intensity": "3"
-    },
-    "fx_segmented": {
-      "enabled": true,
-      "gap": "6",
-      "width": "20",
-      "angle": "120"
-    },
-    "fx_original_flow": {
-      "enabled": true,
-      "speed": "1.5"
-    },
-    "fx_glow_pulse": {
-      "enabled": true,
-      "intensity": "40",
-      "speed": "0.5",
-      "glowColor": "#00f0ff"
+    "fontSize": "60",
+    "fontColor": "#fcee0a",
+    "fontY": "-50",
+    "fontX": "0",
+    "fontStroke": true,
+    "fontShadow": true,
+    "barHeight": "40",
+    "barRadius": "0",
+    "borderWidth": "0",
+    "barPadding": "0",
+    "trackColor": "#2b2b2b",
+    "trackOpacity": "80",
+    "fillColor1": "#00f0ff",
+    "fillColor2": "#ff003c",
+    "fillAngle": "90",
+    "fx": {
+        "fx_glass": {
+            "enabled": false,
+            "blur": 10,
+            "opacity": 20,
+            "border": 30
+        },
+        "fx_original_flow": {
+            "enabled": true,
+            "speed": "1.5"
+        },
+        "fx_heartbeat": {
+            "enabled": false,
+            "speed": 1
+        },
+        "fx_segmented": {
+            "enabled": true,
+            "gap": "6",
+            "width": "20",
+            "angle": "120"
+        },
+        "fx_glitch": {
+            "enabled": true,
+            "intensity": "3"
+        },
+        "fx_glow_pulse": {
+            "enabled": true,
+            "intensity": "40",
+            "speed": "0.5",
+            "glowColor": "#00f0ff"
+        },
+        "fx_rainbow_pulse": {
+            "enabled": false,
+            "speed": 3
+        },
+        "fx_stripes": {
+            "enabled": false,
+            "enableStripes": true
+        },
+        "fx_gloss_sweep": {
+            "enabled": false,
+            "speed": 1.2
+        }
     }
-  }
 }

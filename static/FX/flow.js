@@ -34,7 +34,6 @@
             // 返回原本的 CSS 邏輯，套用在 ::after 偽元素上
             // 為了避免動畫名稱衝突，這裡將 keyframes 改名為 flowShimmerOriginal
             return `
-                /* --- 原版流光特效 (放在 ::after) --- */
                 #goalDiv .progress .progress-bar::after {
                     content: "" !important;
                     position: absolute !important;
@@ -45,7 +44,7 @@
                     background: ${originalComplexGradient} !important;
                     animation: flowShimmerOriginal ${speed}s linear infinite !important;
                     z-index: 999 !important;
-                    pointer-events: none !important; /* 確保不擋住滑鼠互動 */
+                    pointer-events: none !important;
                 }
 
                 @keyframes flowShimmerOriginal {

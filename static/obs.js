@@ -406,7 +406,6 @@ body::-webkit-scrollbar { display: none !important; }
     height: 100% !important; border-radius: inherit !important;
     background: linear-gradient(${v.fillAngle}deg, ${v.fillColor1}, ${v.fillColor2}) !important;
     position: relative !important; z-index: 10 !important; overflow: hidden !important; transition: width 0.3s ease !important;
-    /* 注意：陰影特效現在建議寫在 Plugin 裡，或者在這裡保留基礎陰影 */
 }
 
 /* ==================

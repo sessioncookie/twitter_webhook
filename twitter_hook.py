@@ -10,7 +10,7 @@ from typing import Optional, Dict, List
 import aiohttp
 import json
 from typing import Union
-from datetime import datetime,timezone
+from datetime import datetime, timezone
 
 load_dotenv(dotenv_path="./.env")
 
