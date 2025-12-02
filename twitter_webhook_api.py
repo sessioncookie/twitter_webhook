@@ -278,7 +278,6 @@ async def get_all_templates():
 async def fx_list():
     # 假設你的特效檔案放在 static/fx 資料夾下
     folder = "./static/fx"
-    
     # 如果資料夾不存在就建立，避免報錯
     if not os.path.exists(folder):
         os.makedirs(folder)

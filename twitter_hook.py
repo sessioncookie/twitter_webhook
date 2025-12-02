@@ -1,228 +1,256 @@
-import aiomysql
-from tweety import Twitter
-from tweety.exceptions import TwitterError
-from dotenv import load_dotenv
 import asyncio
+import json
 import os
+import sys
+from datetime import datetime, timezone
+from typing import Dict, List, NamedTuple, Optional, Union
+
+import aiohttp
+import aiomysql
 import redis.asyncio as redis
 from dateutil import parser
-from typing import Optional, Dict, List
-import aiohttp
-import json
-from typing import Union
-from datetime import datetime, timezone
+from dotenv import load_dotenv
+from tweety import Twitter
+from tweety.exceptions import TwitterError
+from tweety.types import Tweet
 
+# --- 配置設定 ---
 load_dotenv(dotenv_path="./.env")
 
-DB_HOST = os.getenv("TWITTER_DB_HOST")
-DB_PORT = int(os.getenv("TWITTER_DB_PORT"))
-DB_USER = os.getenv("TWITTER_DB_USER")
-DB_PASSWORD = os.getenv("TWITTER_DB_PASSWORD")
-DB_DATABASE = os.getenv("TWITTER_DB_DATABASE")
-TWITTER_REDIS_URL = os.getenv("TWITTER_REDIS_URL")
-TWITTER_REDIS_MAX_CONNECTIONS = os.getenv("TWITTER_REDIS_MAX_CONNECTIONS")
-username_dict = json.loads(os.getenv("username_dict"))
-pool = redis.ConnectionPool.from_url(
-    TWITTER_REDIS_URL, max_connections=int(TWITTER_REDIS_MAX_CONNECTIONS)
-)
-redis_client = redis.Redis(connection_pool=pool)
+
+class Config:
+    DB_HOST = os.getenv("TWITTER_DB_HOST")
+    DB_PORT = int(os.getenv("TWITTER_DB_PORT", 3306))
+    DB_USER = os.getenv("TWITTER_DB_USER")
+    DB_PASSWORD = os.getenv("TWITTER_DB_PASSWORD")
+    DB_DATABASE = os.getenv("TWITTER_DB_DATABASE")
+
+    REDIS_URL = os.getenv("TWITTER_REDIS_URL")
+    REDIS_MAX_CONNS = int(os.getenv("TWITTER_REDIS_MAX_CONNECTIONS", 10))
+
+    # 解析帳號字典
+    try:
+        ACCOUNTS = json.loads(os.getenv("username_dict", "{}"))
+        ACCOUNT_LIST = list(ACCOUNTS.items())  # 轉為 list 方便輪詢
+    except json.JSONDecodeError:
+        print("❌ username_dict 格式錯誤")
+        sys.exit(1)
+
+    REDIS_KEY_PREFIX = "twitter:last_tweet_time"
 
 
-async def create_pool():
+# --- 資料結構 ---
+class FollowTask(NamedTuple):
+    id: int
+    follow_user: str
+    webhook_url: str
+    notify_msg: str
+
+
+class TweetResult(NamedTuple):
+    url: str
+    created_at: datetime
+
+
+class UserNotFoundError(Exception):
+    """當 Twitter 用戶不存在或鎖定時拋出"""
+
+    pass
+
+
+# --- 全域連線池 ---
+redis_pool = redis.ConnectionPool.from_url(Config.REDIS_URL, max_connections=Config.REDIS_MAX_CONNS)
+redis_client = redis.Redis(connection_pool=redis_pool)
+
+
+# --- 資料庫操作 ---
+async def create_db_pool():
     try:
         pool = await aiomysql.create_pool(
-            host=DB_HOST,
-            port=DB_PORT,
-            user=DB_USER,
-            password=DB_PASSWORD,
-            db=DB_DATABASE,
+            host=Config.DB_HOST,
+            port=Config.DB_PORT,
+            user=Config.DB_USER,
+            password=Config.DB_PASSWORD,
+            db=Config.DB_DATABASE,
             minsize=1,
             maxsize=10,
             charset="utf8mb4",
-            loop=asyncio.get_event_loop(),
+            autocommit=True,
         )
-        print("連線池建立成功")
+        print("✅ 資料庫連線池建立成功")
         return pool
-    except aiomysql.Error as e:
-        print(f"連線池建立失敗: {e}")
+    except Exception as e:
+        print(f"❌ 資料庫連線失敗: {e}")
         return None
 
 
-async def fetch_with_pool(pool):
+async def fetch_active_tasks(pool) -> Dict[str, List[FollowTask]]:
+    """獲取任務並按用戶分組"""
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
             await cursor.execute(
-                "SELECT id,follow_user,webhook_url,notify FROM follow_data WHERE state = 1"
+                "SELECT id, follow_user, webhook_url, notify FROM follow_data WHERE state = 1"
             )
-            results = await cursor.fetchall()
-            return results
+            rows = await cursor.fetchall()
+
+            # 將資料轉換為物件並分組
+            grouped = {}
+            for row in rows:
+                task = FollowTask(
+                    id=row[0], follow_user=row[1], webhook_url=row[2], notify_msg=row[3]
+                )
+                if task.follow_user not in grouped:
+                    grouped[task.follow_user] = []
+                grouped[task.follow_user].append(task)
+            return grouped
 
 
-async def update_state(pool, id: int):
+async def disable_task(pool, task_id: int):
+    """發生嚴重錯誤時停用任務"""
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
-            await cursor.execute("UPDATE follow_data SET state = 0 WHERE id = %s", (id,))
-            await conn.commit()
+            await cursor.execute("UPDATE follow_data SET state = 0 WHERE id = %s", (task_id,))
 
 
-async def twitter(
-    target_username: str,
-    TWITTER_username: str = "0",
-    TWITTER_password: str = "0",
-):
+# --- Twitter 邏輯 ---
+async def get_latest_tweet(target_username: str, auth_user: str, auth_pass: str) -> Optional[TweetResult]:
+    """獲取最新貼文，若用戶不存在則拋出 UserNotFoundError"""
+    token_path = f".twitter_token/{auth_user}"
+    app = Twitter(token_path)
+    
     try:
-        token_path = f".twitter_token/{TWITTER_username}"
-        app = Twitter(token_path)
         if not os.path.exists(token_path):
-            await app.sign_in(username=TWITTER_username, password=TWITTER_password)
+            await app.sign_in(username=auth_user, password=auth_pass)
         await app.connect()
-
+        
+        # 獲取用戶
         try:
-            user = await app.get_user_info(target_username)
+            user_info = await app.get_user_info(target_username)
         except TwitterError as e:
-            print(f"Error fetching user info: {e}")
-            print("用戶名:", target_username)
+            if "User Account wasn't Found" in str(e) or "Protected" in str(e):
+                raise UserNotFoundError(f"用戶 {target_username} 不存在或已鎖定")
+            raise e
 
-            if str(e) == "The User Account wasn't Found or is Protected":
+        # 獲取推文
+        all_tweets = await app.get_tweets(user_info)
+        
+        # 尋找第一則非轉推且「有時間」的推文
+        for tweet in all_tweets.tweets:
+            actual_tweet = tweet
+            if hasattr(tweet, "tweets") and tweet.tweets: 
+                actual_tweet = tweet.tweets[0]
+            elif isinstance(tweet, list):
+                actual_tweet = tweet[0]
 
-                return (
-                    f"抱歉，無法獲取用戶{target_username}的資訊，請檢查是否輸入錯誤，已關閉服務。",
-                    datetime.now(timezone.utc),
-                    True,
-                )
-            else:
-                return (
-                    "程式錯誤。",
-                    datetime.now(timezone.utc),
-                    False,
-                )
+            # --- 修正點開始 ---
+            # 1. 確保不是轉推
+            # 2. 確保 created_on 不為 None (防呆)
+            if not actual_tweet.is_retweet and actual_tweet.created_on is not None:
+                return TweetResult(url=actual_tweet.url, created_at=actual_tweet.created_on)
+            # --- 修正點結束 ---
+                
+        return None
 
-        try:
-            all_tweets = await app.get_tweets(user)
-            for tweet in all_tweets.tweets:
-                if hasattr(tweet, "tweets"):
-                    for _tweet in tweet:
-                        if not _tweet.is_retweet:
-                            return _tweet.url, _tweet.created_on, False
-                else:
-                    if not tweet.is_retweet:
-                        return tweet.url, tweet.created_on, False
-        except TwitterError as e:
-            print(f"Error fetching tweets: {e}")
-            return None
-
+    except UserNotFoundError:
+        raise
     except Exception as e:
-        print(f"Unexpected error in Twitter task: {e}")
+        print(f"⚠️ 抓取 {target_username} 失敗 (使用帳號 {auth_user}): {e}")
         return None
 
 
-REDIS_KEY = "twitter:last_tweet_time"
+# --- 輔助功能 ---
+async def is_new_tweet(username: str, tweet_time: datetime) -> bool:
+    """檢查 Redis 是否為新推文"""
+    cached_time_str = await redis_client.hget(Config.REDIS_KEY_PREFIX, username)
+
+    if cached_time_str:
+        cached_time = parser.parse(cached_time_str.decode("utf-8"))
+        if cached_time >= tweet_time:
+            return False
+
+    await redis_client.hset(Config.REDIS_KEY_PREFIX, username, tweet_time.isoformat())
+    return True
 
 
-async def twitter_and_redis(username: str, time: Union[str, datetime]) -> bool:
-    if isinstance(time, str):
-        new_time = parser.parse(time)
-    else:
-        new_time = time
-
-    old_time_str: Optional[str] = await redis_client.hget(REDIS_KEY, username)
-
-    if old_time_str is None:
-        await redis_client.hset(REDIS_KEY, username, new_time.isoformat())
-        return True
-
-    old_time = parser.parse(old_time_str)
-
-    if old_time < new_time:
-        await redis_client.hset(REDIS_KEY, username, new_time.isoformat())
-        return True
-    return False
-
-
-async def message_to_webhook(message: str, webhook_url: str) -> bool:
+async def send_discord_webhook(url: str, content: str) -> bool:
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.post(webhook_url, json={"content": message}) as resp:
-                return resp.status == 200 or resp.status == 204
-        except aiohttp.ClientError as e:
-            print(f"❌ 發送 webhook 時發生錯誤: {e}")
+            async with session.post(url, json={"content": content}) as resp:
+                return resp.status in (200, 204)
+        except Exception as e:
+            print(f"❌ Webhook 發送錯誤 ({url}): {e}")
             return False
 
 
-async def check_network() -> bool:
-    async with aiohttp.ClientSession() as session:
-        try:
+async def is_network_online() -> bool:
+    try:
+        async with aiohttp.ClientSession() as session:
             async with session.get("https://www.google.com", timeout=5) as resp:
                 return resp.status == 200
-        except aiohttp.ClientError:
-            return False
+    except:
+        return False
+
+
+# --- 主程序 ---
+async def process_user_tasks(pool, target_user: str, tasks: List[FollowTask], account_idx: int):
+    """處理單一監控目標的所有任務"""
+    # 輪詢使用 Twitter 帳號
+    auth_user, auth_pass = Config.ACCOUNT_LIST[account_idx % len(Config.ACCOUNT_LIST)]
+
+    try:
+        tweet_data = await get_latest_tweet(target_user, auth_user, auth_pass)
+
+        if tweet_data and await is_new_tweet(target_user, tweet_data.created_at):
+            print(f"🔔 {target_user} 發現新推文，開始推送...")
+            for task in tasks:
+                msg = f"{task.notify_msg}\n{tweet_data.url}"
+                await send_discord_webhook(task.webhook_url, msg)
+
+    except UserNotFoundError as e:
+        print(f"⛔ {target_user} 帳號異常，發送通知並停用任務。")
+        error_msg = f"無法獲取用戶 {target_user} 的資訊（不存在或鎖定），已停止監控。"
+
+        # 檢查網路是否正常，避免因網路問題誤判
+        if await is_network_online():
+            for task in tasks:
+                await send_discord_webhook(task.webhook_url, error_msg)
+                await disable_task(pool, task.id)
+        else:
+            print("⚠️ 檢測到網路異常，跳過停用操作。")
 
 
 async def main():
-    pool = await create_pool()
-    if not pool:
+    db_pool = await create_db_pool()
+    if not db_pool:
         return
 
-    followers = [[username, token] for username, token in username_dict.items()]
-    follow_data = await fetch_with_pool(pool)
+    try:
+        grouped_tasks = await fetch_active_tasks(db_pool)
 
-    # Group by follow_user to avoid duplicate Twitter queries
-    grouped_data: Dict[str, List[dict]] = {}
-    for data in follow_data:
-        follow_user = data[1]
-        if follow_user not in grouped_data:
-            grouped_data[follow_user] = []
-        grouped_data[follow_user].append({"id": data[0], "webhook_url": data[2], "notify": data[3]})
+        # 併發處理所有用戶 (可選：如果怕被鎖，可以用 for 迴圈改成序列執行)
+        # 這裡保持原本的邏輯：序列執行
+        for i, (target_user, tasks) in enumerate(grouped_tasks.items()):
+            await process_user_tasks(db_pool, target_user, tasks, i)
 
-    for idx, (follow_user, entries) in enumerate(grouped_data.items()):
-        # Use index to cycle through followers list
-        twitter_account = followers[idx % len(followers)]
-        result = await twitter(
-            target_username=follow_user,
-            TWITTER_username=twitter_account[0],
-            TWITTER_password=twitter_account[1],
-        )
-
-        if result is None:
-            continue
-        tw_url, tw_time, user_can_not_find = result
-        try:
-            if await twitter_and_redis(follow_user, tw_time):
-                for entry in entries:
-                    if tw_url == "程式錯誤。":
-                        success = True
-                        continue
-                    else:
-                        success = await message_to_webhook(
-                            message=entry["notify"] + f"\n{tw_url}", webhook_url=entry["webhook_url"]
-                        )
-
-                    if not success or user_can_not_find:
-                        print(f"Webhook 發送失敗或用戶不存在: {follow_user} Webhook: {entry['webhook_url']}")
-                        # Check network status before disabling
-                        if await check_network():
-                            print("網路正常，更新狀態")
-                            await update_state(pool, entry["id"])
-                        else:
-                            print("檢測到網路問題，跳過狀態更新")
-                            pool.close()
-                            await pool.wait_closed()
-                            return
-        except Exception as e:
-            print(f"處理 {follow_user} 時發生錯誤: {e}")
-
-    pool.close()
-    await pool.wait_closed()
+    finally:
+        db_pool.close()
+        await db_pool.wait_closed()
 
 
 async def scheduler():
+    print(f"🚀 服務啟動，監控 {len(Config.ACCOUNT_LIST)} 個 Twitter 帳號中...")
     while True:
         try:
             await main()
         except Exception as e:
-            print(f"執行任務時出錯: {e}")
-        await asyncio.sleep(900)  # 每隔 900 秒（15 分鐘）
+            print(f"💥 主迴圈發生未預期錯誤: {e}")
+
+        print(f"💤 等待 900 秒...")
+        await asyncio.sleep(900)
 
 
 if __name__ == "__main__":
-    asyncio.run(scheduler())
+    try:
+        asyncio.run(scheduler())
+    except KeyboardInterrupt:
+        print("程式已手動停止")

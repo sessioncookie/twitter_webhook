@@ -1,0 +1,61 @@
+{
+    "fontSize": "55",
+    "fontColor": "#e1df93",
+    "fontY": "-55",
+    "fontX": "0",
+    "fontStroke": false,
+    "fontShadow": true,
+    "barHeight": "48",
+    "barRadius": "100",
+    "borderWidth": "8",
+    "barPadding": "7",
+    "trackColor": "#111111",
+    "trackOpacity": "90",
+    "fillColor1": "#002aff",
+    "fillColor2": "#ff0000",
+    "fillAngle": "91",
+    "fx": {
+        "fx_stripes": {
+            "enabled": true,
+            "enableStripes": true
+        },
+        "fx_rainbow_pulse": {
+            "enabled": false,
+            "speed": 3
+        },
+        "fx_heartbeat": {
+            "enabled": false,
+            "speed": 1
+        },
+        "fx_glass": {
+            "enabled": false,
+            "blur": "7",
+            "opacity": 20,
+            "border": 30
+        },
+        "fx_gloss_sweep": {
+            "enabled": true,
+            "speed": "3"
+        },
+        "fx_glow_pulse": {
+            "enabled": false,
+            "intensity": "25",
+            "speed": "4",
+            "glowColor": "#ffd700"
+        },
+        "fx_original_flow": {
+            "enabled": true,
+            "speed": "5"
+        },
+        "fx_glitch": {
+            "enabled": false,
+            "intensity": "3"
+        },
+        "fx_segmented": {
+            "enabled": true,
+            "gap": "2",
+            "width": "8",
+            "angle": "90"
+        }
+    }
+}
